@@ -1,91 +1,134 @@
-name: Publish Prebuilt Debug APK
+name: Build and Publish Android APK
 
 on:
   push:
     branches:
       - main
       - master
-    paths:
-      - 'apk-distribution/app-debug.apk'
   workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  publish-apk:
-    name: Validate and Publish APK Release
+  build-and-publish-apk:
+    name: Compile Source & Publish Debug APK
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Validate prebuilt APK and SHA-256 checksum
-        id: validate
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK Platform 36.1 & Build-Tools 36.0.0
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(command -v sdkmanager || echo "${SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager")"
+          yes | "$SDKMANAGER" --licenses >/dev/null || true
+          "$SDKMANAGER" --install "platform-tools" "build-tools;36.0.0" "platforms;android-36.1"
+
+      - name: Set up Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+
+      - name: Prepare debug signing keystore and environment defaults
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f "debug.keystore" ]; then
+            if [ -f "debug.keystore.base64" ]; then
+              base64 -d debug.keystore.base64 > debug.keystore
+              echo "Restored project debug.keystore from debug.keystore.base64"
+            else
+              keytool -genkeypair -v \
+                -keystore debug.keystore \
+                -alias androiddebugkey \
+                -keyalg RSA \
+                -keysize 2048 \
+                -validity 10000 \
+                -storepass android \
+                -keypass android \
+                -dname "CN=Android Debug,O=Android,C=US"
+              echo "Generated fallback debug.keystore"
+            fi
+          fi
+          [ -f ".env.example" ] || touch .env.example
+
+      - name: Compile Android Debug APK from source
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Verify compiled APK integrity and signature
+        id: verify
         shell: bash
         run: |
           set -euo pipefail
 
-          APK_PATH="apk-distribution/app-debug.apk"
-          SHA_PATH="apk-distribution/app-debug.apk.sha256"
+          APK_PATH="app/build/outputs/apk/debug/app-debug.apk"
 
-          if [ ! -f "$APK_PATH" ]; then
-            echo "Error: APK file not found at $APK_PATH" >&2
+          if [ ! -f "$APK_PATH" ] || [ ! -s "$APK_PATH" ]; then
+            echo "Error: Compiled APK not found or empty at $APK_PATH" >&2
             exit 1
           fi
-
-          if [ ! -s "$APK_PATH" ]; then
-            echo "Error: APK file at $APK_PATH is empty" >&2
-            exit 1
-          fi
-
-          if [ ! -f "$SHA_PATH" ]; then
-            echo "Error: Checksum file not found at $SHA_PATH" >&2
-            exit 1
-          fi
-
-          EXPECTED_SHA="$(awk '{print $1}' "$SHA_PATH")"
-          ACTUAL_SHA="$(sha256sum "$APK_PATH" | awk '{print $1}')"
-
-          if [ -z "$EXPECTED_SHA" ] || [ "$EXPECTED_SHA" != "$ACTUAL_SHA" ]; then
-            echo "Error: SHA-256 mismatch! Expected '$EXPECTED_SHA', got '$ACTUAL_SHA'" >&2
-            exit 1
-          fi
-
-          (cd apk-distribution && sha256sum -c app-debug.apk.sha256)
 
           unzip -tq "$APK_PATH"
 
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          APKSIGNER="$(find "${SDK_ROOT}/build-tools" -name apksigner 2>/dev/null | sort -V | tail -n 1 || true)"
+          if [ -n "$APKSIGNER" ] && [ -x "$APKSIGNER" ]; then
+            "$APKSIGNER" verify --verbose "$APK_PATH"
+          fi
+
+          ACTUAL_SHA="$(sha256sum "$APK_PATH" | awk '{print $1}')"
           APK_BYTES="$(stat -c '%s' "$APK_PATH")"
           APK_HUMAN="$(numfmt --to=iec-i --suffix=B "$APK_BYTES" 2>/dev/null || echo "${APK_BYTES} bytes")"
 
+          echo "apk_path=${APK_PATH}" >> "$GITHUB_OUTPUT"
           echo "sha256=${ACTUAL_SHA}" >> "$GITHUB_OUTPUT"
           echo "size_bytes=${APK_BYTES}" >> "$GITHUB_OUTPUT"
           echo "size_human=${APK_HUMAN}" >> "$GITHUB_OUTPUT"
 
-      - name: Create GitHub Release and upload APK
-        id: release
+      - name: Upload APK as GitHub Actions Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: ${{ steps.verify.outputs.apk_path }}
+          if-no-files-found: error
+
+      - name: Publish GitHub Release with APK
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          APK_SHA256: ${{ steps.validate.outputs.sha256 }}
-          APK_SIZE_BYTES: ${{ steps.validate.outputs.size_bytes }}
-          APK_SIZE_HUMAN: ${{ steps.validate.outputs.size_human }}
+          APK_PATH: ${{ steps.verify.outputs.apk_path }}
+          APK_SHA256: ${{ steps.verify.outputs.sha256 }}
+          APK_SIZE_BYTES: ${{ steps.verify.outputs.size_bytes }}
+          APK_SIZE_HUMAN: ${{ steps.verify.outputs.size_human }}
         run: |
           set -euo pipefail
 
-          APK_PATH="apk-distribution/app-debug.apk"
           RELEASE_TAG="debug-apk-build-${GITHUB_RUN_NUMBER}-${GITHUB_RUN_ATTEMPT}"
-          RELEASE_TITLE="Android Debug APK (${RELEASE_TAG})"
+          RELEASE_TITLE="Katha AI Debug APK (${RELEASE_TAG})"
           LATEST_DOWNLOAD_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/latest/download/app-debug.apk"
 
           if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            echo "Error: Release tag $RELEASE_TAG already exists. Refusing to overwrite existing release." >&2
+            echo "Error: Release tag $RELEASE_TAG already exists." >&2
             exit 1
           fi
 
           RELEASE_NOTES="$(cat <<EOF
-          Prebuilt Android debug APK compiled in Google AI Studio.
+          Android debug APK compiled automatically from source via GitHub Actions.
 
           - **Asset:** \`app-debug.apk\`
           - **Size:** ${APK_SIZE_HUMAN} (${APK_SIZE_BYTES} bytes)
@@ -101,20 +144,8 @@ jobs:
             --notes "$RELEASE_NOTES" \
             --latest)"
 
-          ASSET_NAME="$(gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[0].name')"
-          if [ "$ASSET_NAME" != "app-debug.apk" ]; then
-            echo "Error: Uploaded release asset name '$ASSET_NAME' does not match 'app-debug.apk'" >&2
-            exit 1
-          fi
-
-          echo "Release Tag: ${RELEASE_TAG}"
-          echo "APK Size: ${APK_SIZE_HUMAN} (${APK_SIZE_BYTES} bytes)"
-          echo "SHA-256: ${APK_SHA256}"
-          echo "GitHub Release Page: ${RELEASE_PAGE_URL}"
-          echo "Direct Latest APK Download URL: ${LATEST_DOWNLOAD_URL}"
-
           {
-            echo "## Android Debug APK Published"
+            echo "## Katha AI Debug APK Built & Published"
             echo ""
             echo "| Property | Value |"
             echo "| --- | --- |"
