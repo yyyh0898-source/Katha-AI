@@ -68,3 +68,60 @@ fun configureAppCheck(context: Context, intent: Intent?) {
         Log.e(TAG, "Failed to initialize Firebase App Check", e)
     }
 }
+
+fun readAppCheckDebugToken(context: Context): String {
+    return try {
+        if (FirebaseApp.getApps(context).isEmpty()) {
+            FirebaseApp.initializeApp(context)
+        }
+        val persistenceKey = FirebaseApp.getInstance().persistenceKey
+        val prefs = context.getSharedPreferences(
+            "$DEBUG_STORE_PREFIX$persistenceKey",
+            Context.MODE_PRIVATE
+        )
+        prefs.getString(DEBUG_SECRET_KEY, "").orEmpty()
+    } catch (e: Exception) {
+        Log.e(TAG, "Failed to read App Check debug secret", e)
+        ""
+    }
+}
+
+private val UUID_REGEX = Regex(
+    "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+)
+
+fun normalizeAppCheckDebugToken(rawInput: String): String {
+    val trimmed = rawInput.trim()
+    val uuidMatch = UUID_REGEX.find(trimmed)?.value
+    return uuidMatch ?: trimmed
+}
+
+fun saveAppCheckDebugToken(context: Context, rawToken: String): Boolean {
+    val cleanToken = normalizeAppCheckDebugToken(rawToken)
+    if (cleanToken.isEmpty()) return false
+
+    return try {
+        if (FirebaseApp.getApps(context).isEmpty()) {
+            FirebaseApp.initializeApp(context)
+        }
+        val persistenceKey = FirebaseApp.getInstance().persistenceKey
+        val prefs = context.getSharedPreferences(
+            "$DEBUG_STORE_PREFIX$persistenceKey",
+            Context.MODE_PRIVATE
+        )
+        val committed = prefs.edit()
+            .putString(DEBUG_SECRET_KEY, cleanToken)
+            .commit()
+
+        if (committed && BuildConfig.DEBUG) {
+            FirebaseAppCheck.getInstance().installAppCheckProviderFactory(
+                DebugAppCheckProviderFactory.getInstance()
+            )
+            Log.d(TAG, "Updated App Check debug secret and reinstalled DebugAppCheckProviderFactory.")
+        }
+        committed
+    } catch (e: Exception) {
+        Log.e(TAG, "Failed to save App Check debug secret", e)
+        false
+    }
+}

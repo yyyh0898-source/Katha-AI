@@ -89,7 +89,16 @@ data class KathaStrings(
     val lockScreenSubtitle: String,
     val unlockBiometricButton: String,
     val unlockWithPinPlaceholder: String,
-    val unlockPinButton: String
+    val unlockPinButton: String,
+    val settingsAppCheckTitle: String,
+    val settingsAppCheckDesc: String,
+    val settingsAppCheckLabel: String,
+    val settingsAppCheckPlaceholder: String,
+    val settingsAppCheckPaste: String,
+    val settingsAppCheckCopy: String,
+    val settingsAppCheckSave: String,
+    val settingsAppCheckSavedMsg: String,
+    val settingsAppCheckCopiedMsg: String
 )
 
 val MyanmarStrings = KathaStrings(
@@ -179,7 +188,16 @@ val MyanmarStrings = KathaStrings(
     lockScreenSubtitle = "ဆက်လက်အသုံးပြုရန် Fingerprint၊ Face ID သို့မဟုတ် PIN ဖြင့် ဖွင့်ပါ",
     unlockBiometricButton = "Fingerprint / Face Unlock ဖြင့် ဖွင့်မည်",
     unlockWithPinPlaceholder = "PIN ဂဏန်းရိုက်ထည့်ပါ",
-    unlockPinButton = "PIN ဖြင့် ဖွင့်မည်"
+    unlockPinButton = "PIN ဖြင့် ဖွင့်မည်",
+    settingsAppCheckTitle = "Firebase App Check Debug Token",
+    settingsAppCheckDesc = "ပြင်ပဖုန်းပေါ်တွင် AI စနစ်သုံးရန် Firebase Console တွင် ခွင့်ပြုထားသော Debug Token ကို ဤနေရာတွင် ထည့်သွင်းသိမ်းဆည်းပါ သို့မဟုတ် လက်ရှိ Token ကို ကူးယူပါ။",
+    settingsAppCheckLabel = "App Check Debug Token (UUID)",
+    settingsAppCheckPlaceholder = "ဥပမာ - XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX",
+    settingsAppCheckPaste = "Paste ထည့်မည်",
+    settingsAppCheckCopy = "Copy ကူးမည်",
+    settingsAppCheckSave = "Token သိမ်းဆည်းမည်",
+    settingsAppCheckSavedMsg = "Firebase App Check Debug Token ကို အောင်မြင်စွာ သိမ်းဆည်းပြီး အသက်သွင်းလိုက်ပါပြီ။",
+    settingsAppCheckCopiedMsg = "Token ကို Clipboard သို့ ကူးယူပြီးပါပြီ။"
 )
 
 val EnglishStrings = KathaStrings(
@@ -269,7 +287,16 @@ val EnglishStrings = KathaStrings(
     lockScreenSubtitle = "Authenticate with Fingerprint, Face Unlock, or your backup PIN",
     unlockBiometricButton = "Unlock with Biometrics",
     unlockWithPinPlaceholder = "Enter backup PIN",
-    unlockPinButton = "Unlock with PIN"
+    unlockPinButton = "Unlock with PIN",
+    settingsAppCheckTitle = "Firebase App Check Debug Token",
+    settingsAppCheckDesc = "Enter your registered Firebase Console App Check Debug Token for external devices, or copy this device's current token.",
+    settingsAppCheckLabel = "App Check Debug Token (UUID)",
+    settingsAppCheckPlaceholder = "e.g. XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX",
+    settingsAppCheckPaste = "Paste",
+    settingsAppCheckCopy = "Copy",
+    settingsAppCheckSave = "Save Token",
+    settingsAppCheckSavedMsg = "Firebase App Check Debug Token saved and activated.",
+    settingsAppCheckCopiedMsg = "Debug token copied to clipboard."
 )
 
 val LocalAppStrings = staticCompositionLocalOf { MyanmarStrings }

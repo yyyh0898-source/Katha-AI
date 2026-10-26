@@ -47,14 +47,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ContentPaste
+import androidx.compose.material.icons.filled.Key
+import androidx.compose.material3.Button
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.example.BuildConfig
 import com.example.data.local.LocalPrefsState
 import com.example.ui.components.CloudSyncStatusPill
 import com.example.ui.components.MatureAgeGateDialog
 import com.example.util.LocalAppStrings
+import com.example.util.normalizeAppCheckDebugToken
+import com.example.util.readAppCheckDebugToken
+import com.example.util.saveAppCheckDebugToken
 
 @Composable
 fun SettingsScreen(
@@ -72,10 +84,15 @@ fun SettingsScreen(
     onSignOut: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     val strings = LocalAppStrings.current
     var nameDraft by remember(localPrefs.displayName) { mutableStateOf(localPrefs.displayName) }
     var pinDraft by remember(localPrefs.backupPin) { mutableStateOf(localPrefs.backupPin) }
     var showAgeGate by remember { mutableStateOf(false) }
+    var appCheckTokenDraft by remember(context) {
+        mutableStateOf(readAppCheckDebugToken(context))
+    }
+    var appCheckStatusMsg by remember { mutableStateOf<String?>(null) }
 
     if (showAgeGate) {
         MatureAgeGateDialog(
@@ -394,6 +411,143 @@ fun SettingsScreen(
                             onCheckedChange = onAutoVoiceChange,
                             modifier = Modifier.testTag("settings_auto_voice_switch")
                         )
+                    }
+                }
+            }
+
+            if (BuildConfig.DEBUG) {
+                // Firebase App Check Debug Token Card (for external device installations)
+                Surface(
+                    shape = RoundedCornerShape(22.dp),
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier.padding(18.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Filled.Key,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = strings.settingsAppCheckTitle,
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+
+                        Text(
+                            text = strings.settingsAppCheckDesc,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+
+                        OutlinedTextField(
+                            value = appCheckTokenDraft,
+                            onValueChange = { updated ->
+                                appCheckTokenDraft = updated
+                                appCheckStatusMsg = null
+                            },
+                            label = { Text(strings.settingsAppCheckLabel) },
+                            placeholder = { Text(strings.settingsAppCheckPlaceholder) },
+                            singleLine = true,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("settings_appcheck_token_input")
+                        )
+
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                                    val pasted = clipboard?.primaryClip
+                                        ?.takeIf { it.itemCount > 0 }
+                                        ?.getItemAt(0)
+                                        ?.coerceToText(context)
+                                        ?.toString()
+                                        .orEmpty()
+                                    if (pasted.isNotBlank()) {
+                                        appCheckTokenDraft = normalizeAppCheckDebugToken(pasted)
+                                        appCheckStatusMsg = null
+                                    }
+                                },
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                                    .testTag("settings_appcheck_paste_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.ContentPaste,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(strings.settingsAppCheckPaste)
+                            }
+
+                            OutlinedButton(
+                                onClick = {
+                                    val tokenToCopy = normalizeAppCheckDebugToken(appCheckTokenDraft)
+                                    if (tokenToCopy.isNotEmpty()) {
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager
+                                        clipboard?.setPrimaryClip(
+                                            ClipData.newPlainText("AppCheckDebugToken", tokenToCopy)
+                                        )
+                                        appCheckStatusMsg = strings.settingsAppCheckCopiedMsg
+                                    }
+                                },
+                                enabled = appCheckTokenDraft.isNotBlank(),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .height(48.dp)
+                                    .testTag("settings_appcheck_copy_button")
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Filled.ContentCopy,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(strings.settingsAppCheckCopy)
+                            }
+                        }
+
+                        Button(
+                            onClick = {
+                                val normalized = normalizeAppCheckDebugToken(appCheckTokenDraft)
+                                if (saveAppCheckDebugToken(context, normalized)) {
+                                    appCheckTokenDraft = normalized
+                                    appCheckStatusMsg = strings.settingsAppCheckSavedMsg
+                                }
+                            },
+                            enabled = appCheckTokenDraft.isNotBlank(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .testTag("settings_appcheck_save_button")
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Check,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(strings.settingsAppCheckSave)
+                        }
+
+                        appCheckStatusMsg?.let { msg ->
+                            Text(
+                                text = msg,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
             }
