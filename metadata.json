@@ -1,0 +1,6 @@
+{
+  "name": "Katha AI",
+  "description": "Create custom AI characters and interactive stories with expressive moods, voice, image generation, Myanmar & English language support, cloud sync, offline mode, and biometric lock.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

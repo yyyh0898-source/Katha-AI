@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Katha AI</string>
+    <string name="sign_in_with_google">Sign in with Google</string>
+    <string name="biometric_prompt_title">Unlock Katha AI</string>
+    <string name="biometric_prompt_subtitle">Verify with Fingerprint or Face Unlock to access your private stories</string>
+    <string name="cd_character_avatar">Character portrait</string>
+    <string name="cd_send_message">Send message</string>
+    <string name="cd_attach_photo">Send photo</string>
+    <string name="cd_generate_image">Generate AI image</string>
+    <string name="cd_voice_input">Voice input</string>
+    <string name="cd_speak_message">Speak message aloud</string>
+    <string name="cd_back">Navigate back</string>
+</resources>

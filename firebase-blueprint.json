@@ -1,0 +1,244 @@
+{
+  "entities": {
+    "UserSettings": {
+      "title": "UserSettings",
+      "description": "Per-user preferences including language, theme mode, accent palette, 18+ mature content toggle, biometric lock, and voice settings.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase UID owning this settings document."
+        },
+        "displayName": {
+          "type": "string",
+          "description": "User display name or nickname used in story roleplay."
+        },
+        "languageCode": {
+          "type": "string",
+          "enum": ["my", "en"],
+          "description": "Preferred UI and default story language ('my' for Myanmar, 'en' for English)."
+        },
+        "themeMode": {
+          "type": "string",
+          "enum": ["system", "dark", "light"],
+          "description": "Preferred color mode."
+        },
+        "accentTheme": {
+          "type": "string",
+          "enum": ["velvet_rose", "midnight_violet", "golden_amber", "emerald_jade", "ocean_cyan"],
+          "description": "Selected custom accent palette."
+        },
+        "matureContentEnabled": {
+          "type": "boolean",
+          "description": "Whether 18+ adult drama/romance story mode is unlocked."
+        },
+        "biometricLockEnabled": {
+          "type": "boolean",
+          "description": "Whether Fingerprint / Face Unlock protection is enabled."
+        },
+        "autoVoiceEnabled": {
+          "type": "boolean",
+          "description": "Whether AI replies automatically play via Text-to-Speech."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp submitted via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp submitted via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "displayName",
+        "languageCode",
+        "themeMode",
+        "accentTheme",
+        "matureContentEnabled",
+        "biometricLockEnabled",
+        "autoVoiceEnabled",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "CharacterProfile": {
+      "title": "CharacterProfile",
+      "description": "Custom AI character persona and interactive story world configuration.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase UID owning this character."
+        },
+        "name": {
+          "type": "string",
+          "description": "Character display name."
+        },
+        "tagline": {
+          "type": "string",
+          "description": "Short subtitle describing the character role or story hook."
+        },
+        "gender": {
+          "type": "string",
+          "enum": ["female", "male", "non_binary", "other"],
+          "description": "Character gender classification."
+        },
+        "age": {
+          "type": "integer",
+          "description": "Character adult age (18 to 999)."
+        },
+        "ageGroup": {
+          "type": "string",
+          "enum": ["18_24", "25_34", "35_plus", "fantasy_ageless"],
+          "description": "Age bracket for filtering."
+        },
+        "personality": {
+          "type": "string",
+          "description": "Detailed personality traits, emotional nuances, and speaking style."
+        },
+        "backstory": {
+          "type": "string",
+          "description": "Character biography and relationship history."
+        },
+        "storyScenario": {
+          "type": "string",
+          "description": "Current story setting, scene atmosphere, and narrative premise."
+        },
+        "greetingMessage": {
+          "type": "string",
+          "description": "Initial opening message spoken by the character."
+        },
+        "currentMood": {
+          "type": "string",
+          "description": "Active emotional mood guiding AI responses."
+        },
+        "isMature18Plus": {
+          "type": "boolean",
+          "description": "Whether this character/story is categorized for 18+ adult audiences."
+        },
+        "avatarPreset": {
+          "type": "string",
+          "description": "Identifier for the character visual theme/avatar style."
+        },
+        "avatarBase64": {
+          "type": "string",
+          "description": "Optional compressed Base64 WebP portrait thumbnail for cloud sync."
+        },
+        "voicePitch": {
+          "type": "number",
+          "description": "TTS voice pitch multiplier (0.5 to 2.0)."
+        },
+        "voiceRate": {
+          "type": "number",
+          "description": "TTS speech rate multiplier (0.5 to 2.0)."
+        },
+        "lastMessagePreview": {
+          "type": "string",
+          "description": "Preview snippet of the most recent conversation turn."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp submitted via FieldValue.serverTimestamp()."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server update timestamp submitted via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "name",
+        "tagline",
+        "gender",
+        "age",
+        "ageGroup",
+        "personality",
+        "backstory",
+        "storyScenario",
+        "greetingMessage",
+        "currentMood",
+        "isMature18Plus",
+        "avatarPreset",
+        "voicePitch",
+        "voiceRate",
+        "lastMessagePreview",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ChatMessage": {
+      "title": "ChatMessage",
+      "description": "Single conversation turn (text, uploaded image, or AI-generated scene image) within a character story thread.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase UID owning this conversation."
+        },
+        "characterId": {
+          "type": "string",
+          "description": "Parent character document ID."
+        },
+        "sender": {
+          "type": "string",
+          "enum": ["user", "ai"],
+          "description": "Message author ('user' or 'ai')."
+        },
+        "text": {
+          "type": "string",
+          "description": "Message body text."
+        },
+        "mood": {
+          "type": "string",
+          "description": "Emotional mood active when this message was sent."
+        },
+        "imageType": {
+          "type": "string",
+          "enum": ["none", "user_upload", "ai_generated"],
+          "description": "Type of attached image, if any."
+        },
+        "imageBase64": {
+          "type": "string",
+          "description": "Optional compressed Base64 WebP image payload (<200KB) for cloud/offline sync."
+        },
+        "imagePrompt": {
+          "type": "string",
+          "description": "Optional prompt used when generating an AI image."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server creation timestamp submitted via FieldValue.serverTimestamp()."
+        }
+      },
+      "required": [
+        "userId",
+        "characterId",
+        "sender",
+        "text",
+        "mood",
+        "imageType",
+        "createdAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserSettings" },
+      "description": "Per-user settings and synced profile configuration."
+    },
+    "/users/{userId}/characters/{characterId}": {
+      "schema": { "$ref": "#/entities/CharacterProfile" },
+      "description": "User-authored AI characters and custom story worlds."
+    },
+    "/users/{userId}/characters/{characterId}/messages/{messageId}": {
+      "schema": { "$ref": "#/entities/ChatMessage" },
+      "description": "Chronological multimodal messages inside a character story session."
+    }
+  }
+}

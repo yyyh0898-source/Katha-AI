@@ -1,0 +1,192 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isValidUserSettings(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.userId == request.auth.uid &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+             data.languageCode is string && data.languageCode.size() <= 10 && data.languageCode in ['my', 'en'] &&
+             data.themeMode is string && data.themeMode.size() <= 16 && data.themeMode in ['system', 'dark', 'light'] &&
+             data.accentTheme is string && data.accentTheme.size() <= 32 &&
+             data.accentTheme in ['velvet_rose', 'midnight_violet', 'golden_amber', 'emerald_jade', 'ocean_cyan'] &&
+             data.matureContentEnabled is bool &&
+             data.biometricLockEnabled is bool &&
+             data.autoVoiceEnabled is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidCharacterProfile(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.userId == request.auth.uid &&
+             data.name is string && data.name.size() >= 1 && data.name.size() <= 80 &&
+             data.tagline is string && data.tagline.size() >= 1 && data.tagline.size() <= 200 &&
+             data.gender is string && data.gender.size() <= 24 && data.gender in ['female', 'male', 'non_binary', 'other'] &&
+             data.age is int && data.age >= 18 && data.age <= 999 &&
+             data.ageGroup is string && data.ageGroup.size() <= 32 &&
+             data.ageGroup in ['18_24', '25_34', '35_plus', 'fantasy_ageless'] &&
+             data.personality is string && data.personality.size() >= 1 && data.personality.size() <= 2000 &&
+             data.backstory is string && data.backstory.size() >= 1 && data.backstory.size() <= 3000 &&
+             data.storyScenario is string && data.storyScenario.size() >= 1 && data.storyScenario.size() <= 3000 &&
+             data.greetingMessage is string && data.greetingMessage.size() >= 1 && data.greetingMessage.size() <= 1500 &&
+             data.currentMood is string && data.currentMood.size() >= 1 && data.currentMood.size() <= 60 &&
+             data.isMature18Plus is bool &&
+             data.avatarPreset is string && data.avatarPreset.size() >= 1 && data.avatarPreset.size() <= 60 &&
+             (!('avatarBase64' in data) || data.avatarBase64 == null || (data.avatarBase64 is string && data.avatarBase64.size() <= 150000)) &&
+             data.voicePitch is number && data.voicePitch >= 0.5 && data.voicePitch <= 2.0 &&
+             data.voiceRate is number && data.voiceRate >= 0.5 && data.voiceRate <= 2.0 &&
+             data.lastMessagePreview is string && data.lastMessagePreview.size() <= 500 &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidChatMessage(data, expectedCharacterId) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.userId == request.auth.uid &&
+             data.characterId is string && data.characterId.size() >= 1 && data.characterId.size() <= 128 &&
+             data.characterId == expectedCharacterId &&
+             data.sender is string && data.sender.size() <= 10 && data.sender in ['user', 'ai'] &&
+             data.text is string && data.text.size() <= 8000 &&
+             data.mood is string && data.mood.size() >= 1 && data.mood.size() <= 60 &&
+             data.imageType is string && data.imageType.size() <= 24 &&
+             data.imageType in ['none', 'user_upload', 'ai_generated'] &&
+             (!('imageBase64' in data) || data.imageBase64 == null || (data.imageBase64 is string && data.imageBase64.size() <= 200000)) &&
+             (!('imagePrompt' in data) || data.imagePrompt == null || (data.imagePrompt is string && data.imagePrompt.size() <= 1000)) &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    match /users/{userId} {
+      allow get: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+      allow list: if false;
+
+      allow create: if isSignedIn() &&
+                       isValidId(userId) &&
+                       request.auth.uid == userId &&
+                       incoming().keys().hasAll([
+                         'userId', 'displayName', 'languageCode', 'themeMode', 'accentTheme',
+                         'matureContentEnabled', 'biometricLockEnabled', 'autoVoiceEnabled',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       incoming().keys().hasOnly([
+                         'userId', 'displayName', 'languageCode', 'themeMode', 'accentTheme',
+                         'matureContentEnabled', 'biometricLockEnabled', 'autoVoiceEnabled',
+                         'createdAt', 'updatedAt'
+                       ]) &&
+                       isValidUserSettings(incoming());
+
+      allow update: if (
+        isSignedIn() &&
+        isValidUserSettings(incoming()) &&
+        isValidId(userId) &&
+        request.auth.uid == userId &&
+        incoming().userId == existing().userId &&
+        incoming().createdAt == existing().createdAt && (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'displayName', 'languageCode', 'themeMode', 'accentTheme',
+            'matureContentEnabled', 'biometricLockEnabled', 'autoVoiceEnabled', 'updatedAt'
+          ])
+        )
+      );
+
+      allow delete: if isSignedIn() && isValidId(userId) && request.auth.uid == userId;
+
+      match /characters/{characterId} {
+        allow get: if isSignedIn() && isValidId(userId) && isValidId(characterId) &&
+                      request.auth.uid == userId && existing().userId == request.auth.uid;
+
+        allow list: if isSignedIn() && isValidId(userId) &&
+                       request.auth.uid == userId && existing().userId == request.auth.uid;
+
+        allow create: if isSignedIn() &&
+                         isValidId(userId) &&
+                         isValidId(characterId) &&
+                         request.auth.uid == userId &&
+                         incoming().keys().hasAll([
+                           'userId', 'name', 'tagline', 'gender', 'age', 'ageGroup',
+                           'personality', 'backstory', 'storyScenario', 'greetingMessage',
+                           'currentMood', 'isMature18Plus', 'avatarPreset',
+                           'voicePitch', 'voiceRate', 'lastMessagePreview',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'name', 'tagline', 'gender', 'age', 'ageGroup',
+                           'personality', 'backstory', 'storyScenario', 'greetingMessage',
+                           'currentMood', 'isMature18Plus', 'avatarPreset', 'avatarBase64',
+                           'voicePitch', 'voiceRate', 'lastMessagePreview',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidCharacterProfile(incoming());
+
+        allow update: if (
+          isSignedIn() &&
+          isValidCharacterProfile(incoming()) &&
+          isValidId(userId) &&
+          isValidId(characterId) &&
+          request.auth.uid == userId &&
+          incoming().userId == existing().userId &&
+          incoming().createdAt == existing().createdAt && (
+            incoming().diff(existing()).affectedKeys().hasOnly([
+              'name', 'tagline', 'gender', 'age', 'ageGroup',
+              'personality', 'backstory', 'storyScenario', 'greetingMessage',
+              'currentMood', 'isMature18Plus', 'avatarPreset', 'avatarBase64',
+              'voicePitch', 'voiceRate', 'lastMessagePreview', 'updatedAt'
+            ])
+          )
+        );
+
+        allow delete: if isSignedIn() && isValidId(userId) && isValidId(characterId) &&
+                         request.auth.uid == userId && existing().userId == request.auth.uid;
+
+        match /messages/{messageId} {
+          allow get: if isSignedIn() && isValidId(userId) && isValidId(characterId) && isValidId(messageId) &&
+                        request.auth.uid == userId && existing().userId == request.auth.uid;
+
+          allow list: if isSignedIn() && isValidId(userId) && isValidId(characterId) &&
+                         request.auth.uid == userId && existing().userId == request.auth.uid;
+
+          allow create: if isSignedIn() &&
+                           isValidId(userId) &&
+                           isValidId(characterId) &&
+                           isValidId(messageId) &&
+                           request.auth.uid == userId &&
+                           incoming().keys().hasAll([
+                             'userId', 'characterId', 'sender', 'text', 'mood', 'imageType', 'createdAt'
+                           ]) &&
+                           incoming().keys().hasOnly([
+                             'userId', 'characterId', 'sender', 'text', 'mood',
+                             'imageType', 'imageBase64', 'imagePrompt', 'createdAt'
+                           ]) &&
+                           isValidChatMessage(incoming(), characterId) &&
+                           exists(/databases/$(database)/documents/users/$(userId)/characters/$(characterId));
+
+          allow update: if false;
+
+          allow delete: if isSignedIn() && isValidId(userId) && isValidId(characterId) && isValidId(messageId) &&
+                           request.auth.uid == userId && existing().userId == request.auth.uid;
+        }
+      }
+    }
+  }
+}
